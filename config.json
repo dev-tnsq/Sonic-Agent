@@ -1,0 +1,32 @@
+{
+  "network": {
+    "rpc_url": "https://rpc.blaze.soniclabs.com",
+    "chain_id": 57054,
+    "explorer_url": "https://testnet.sonicscan.org"
+  },
+  "contracts": {
+    "router": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    "automation": "CONTRACT_ADDRESS_AFTER_DEPLOYMENT"
+  },
+  "ai": {
+    "update_interval": 60,
+    "confidence_threshold": 0.7,
+    "min_trade_amount": 0.1,
+    "max_trade_amount": 1.0,
+    "slippage_tolerance": 0.5,
+    "models": {
+      "price_prediction": "gpt-4",
+      "security_analysis": "gpt-4"
+    }
+  },
+  "zerepy": {
+    "pool_scan_interval": 30,
+    "max_price_impact": 2.0,
+    "auto_rebalance": true
+  },
+  "monitoring": {
+    "log_level": "INFO",
+    "telegram_bot_token": "YOUR_BOT_TOKEN",
+    "discord_webhook": "YOUR_WEBHOOK_URL"
+  }
+}
