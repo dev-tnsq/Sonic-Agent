@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol"; // Fix import path
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface ISonicRouter {
+    function WETH() external pure returns (address);
     function swapExactETHForTokens(
         uint amountOutMin,
         address[] calldata path,
@@ -22,7 +25,14 @@ interface ISonicRouter {
     ) external returns (uint[] memory amounts);
 }
 
+error Unauthorized();
+error InvalidStrategy();
+error ExecutionTooSoon();
+error InvalidAmount();
+
 contract SonicAIAutomation is Ownable, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20;
+
     ISonicRouter public sonicRouter;
     mapping(string => uint256) public priceFeeds;
     mapping(address => bool) public authorizedAI;
@@ -55,6 +65,7 @@ contract SonicAIAutomation is Ownable, ReentrancyGuard, Pausable {
     event PriceUpdated(string indexed pair, uint256 price, uint256 timestamp);
     
     constructor(address _router) Ownable(msg.sender) {
+        if (_router == address(0)) revert InvalidStrategy();
         sonicRouter = ISonicRouter(_router);
     }
     
@@ -97,15 +108,13 @@ contract SonicAIAutomation is Ownable, ReentrancyGuard, Pausable {
         uint256 amount,
         uint256 minReturn
     ) external nonReentrant whenNotPaused {
-        require(authorizedAI[msg.sender], "Unauthorized");
-        require(strategyIndex < userStrategies[user].length, "Invalid strategy");
+        if (!authorizedAI[msg.sender]) revert Unauthorized();
+        if (strategyIndex >= userStrategies[user].length) revert InvalidStrategy();
         
         Strategy storage strategy = userStrategies[user][strategyIndex];
-        require(strategy.active, "Strategy inactive");
-        require(
-            block.timestamp >= strategy.lastExecution + strategy.config.executionDelay,
-            "Too soon"
-        );
+        if (!strategy.active) revert InvalidStrategy();
+        if (block.timestamp < strategy.lastExecution + strategy.config.executionDelay) 
+            revert ExecutionTooSoon();
         
         if (isBuy) {
             executeBuy(user, strategy, amount, minReturn);
@@ -123,12 +132,15 @@ contract SonicAIAutomation is Ownable, ReentrancyGuard, Pausable {
         uint256 amount,
         uint256 minReturn
     ) internal {
-        require(amount >= strategy.config.minAmount, "Amount too low");
-        require(amount <= strategy.config.maxAmount, "Amount too high");
+        if (amount < strategy.config.minAmount || amount > strategy.config.maxAmount) 
+            revert InvalidAmount();
         
         address[] memory path = new address[](2);
         path[0] = sonicRouter.WETH();
         path[1] = address(this);
+
+        // Fix: Use safeIncreaseAllowance instead of safeApprove
+        IERC20(path[0]).safeIncreaseAllowance(address(sonicRouter), amount);
         
         sonicRouter.swapExactETHForTokens{value: amount}(
             minReturn,
@@ -144,12 +156,15 @@ contract SonicAIAutomation is Ownable, ReentrancyGuard, Pausable {
         uint256 amount,
         uint256 minReturn
     ) internal {
-        require(amount >= strategy.config.minAmount, "Amount too low");
-        require(amount <= strategy.config.maxAmount, "Amount too high");
+        if (amount < strategy.config.minAmount || amount > strategy.config.maxAmount) 
+            revert InvalidAmount();
         
         address[] memory path = new address[](2);
         path[0] = address(this);
         path[1] = sonicRouter.WETH();
+
+        // Fix: Use safeIncreaseAllowance for safer approval
+        IERC20(path[0]).safeIncreaseAllowance(address(sonicRouter), amount);
         
         sonicRouter.swapExactTokensForETH(
             amount,
@@ -161,7 +176,7 @@ contract SonicAIAutomation is Ownable, ReentrancyGuard, Pausable {
     }
     
     function updatePrice(string calldata pair, uint256 price) external {
-        require(authorizedAI[msg.sender], "Unauthorized");
+        if (!authorizedAI[msg.sender]) revert Unauthorized();
         priceFeeds[pair] = price;
         emit PriceUpdated(pair, price, block.timestamp);
     }

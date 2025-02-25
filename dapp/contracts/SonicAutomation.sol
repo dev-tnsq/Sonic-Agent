@@ -1,34 +1,35 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.20;
 
-contract SonicAutomation {
-    address public owner;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+
+contract SonicAutomation is Ownable, ReentrancyGuard, Pausable {
+    error InsufficientFunds();
+    error InvalidWeights();
+    error InvalidName();
+    error Unauthorized();
+
+    constructor() Ownable(msg.sender) {}
+
     mapping(string => uint256) public priceData;
 
     event PriceUpdated(string coinId, uint256 price);
     event SonicBought(address user, uint256 amount);
 
-    constructor() {
-        owner = msg.sender;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
-    }
-
-    function updatePrice(string memory coinId, uint256 price) external onlyOwner {
+    function updatePrice(string calldata coinId, uint256 price) external onlyOwner {
         priceData[coinId] = price;
         emit PriceUpdated(coinId, price);
     }
 
-    function buySonic(uint256 amount) external payable {
-        require(msg.value >= amount, "Insufficient funds");
+    function buySonic(uint256 amount) external payable nonReentrant whenNotPaused {
+        if (msg.value < amount) revert InsufficientFunds();
         emit SonicBought(msg.sender, amount);
     }
 
-    function withdraw() external onlyOwner {
-        payable(owner).transfer(address(this).balance);
+    function withdraw() external onlyOwner nonReentrant {
+        payable(owner()).transfer(address(this).balance);
     }
 
     struct Index {
@@ -45,8 +46,20 @@ contract SonicAutomation {
     event IndexRebalanced(address user, string name);
     event ENSRegistered(address user, string ensName);
 
-    function createIndex(string memory name, string[] memory tokens, uint256[] memory weights) external {
-        require(tokens.length == weights.length, "Invalid weights");
+    function createIndex(
+        string calldata name,
+        string[] calldata tokens,
+        uint256[] calldata weights
+    ) external whenNotPaused {
+        if (bytes(name).length == 0) revert InvalidName();
+        if (tokens.length != weights.length || tokens.length == 0) revert InvalidWeights();
+        
+        uint256 totalWeight;
+        for(uint i = 0; i < weights.length; i++) {
+            totalWeight += weights[i];
+        }
+        if (totalWeight != 100) revert InvalidWeights();
+
         userIndices[msg.sender].push(Index(name, tokens, weights, block.timestamp));
         emit IndexCreated(msg.sender, name);
     }
