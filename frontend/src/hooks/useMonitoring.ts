@@ -1,23 +1,23 @@
 import { useContractRead, useContractWrite, useAccount } from 'wagmi';
-import { SONIC_ADDRESSES } from '@/constants/addresses';
-import monitorABI from '@/abi/SonicAIMonitor.json';
+import { CONTRACT_ADDRESSES } from '@/lib/contracts';
+import { SONIC_AI_MONITOR_ABI } from '@/lib/abi/contracts';
 import { parseEther } from 'viem';
+import { type Strategy } from '@/types/contracts';
 
 export function useMonitoring() {
   const { address } = useAccount();
 
   const { data: strategy } = useContractRead({
-    address: SONIC_ADDRESSES.MONITOR_CONTRACT,
-    abi: monitorABI,
+    address: CONTRACT_ADDRESSES.MONITOR as `0x${string}`,
+    abi: SONIC_AI_MONITOR_ABI,
     functionName: 'getStrategy',
-    args: [address],
+    args: [address ?? '0x0000000000000000000000000000000000000000'],
+    query: {
+      enabled: Boolean(address),
+    },
   });
 
-  const { writeAsync: setStrategy } = useContractWrite({
-    address: SONIC_ADDRESSES.MONITOR_CONTRACT,
-    abi: monitorABI,
-    functionName: 'setStrategy',
-  });
+  const { writeContract: setStrategy } = useContractWrite();
 
   const createStrategy = async (
     targetPrice: number,
@@ -25,7 +25,12 @@ export function useMonitoring() {
     maxAmount: number,
     tokens: `0x${string}`[]
   ) => {
+    if (!setStrategy) return;
+    
     await setStrategy({
+      address: CONTRACT_ADDRESSES.MONITOR as `0x${string}`,
+      abi: SONIC_AI_MONITOR_ABI,
+      functionName: 'setStrategy',
       args: [
         parseEther(targetPrice.toString()),
         parseEther(stopLoss.toString()),
@@ -36,7 +41,7 @@ export function useMonitoring() {
   };
 
   return {
-    strategy,
+    strategy: strategy as Strategy | undefined,
     createStrategy,
   };
 }

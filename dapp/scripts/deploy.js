@@ -15,40 +15,30 @@ async function main() {
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with account:", deployer.address);
-  
-  // Deploy the monitoring contract first
-  const SonicAIMonitor = await ethers.getContractFactory("SonicAIMonitor");
-  console.log("Deploying SonicAIMonitor...");
-  const monitor = await SonicAIMonitor.deploy();
-  await monitor.waitForDeployment();
-  const monitorAddress = await monitor.getAddress();
-  console.log("SonicAIMonitor deployed to:", monitorAddress);
 
-  // Deploy the automation contract that will execute trades
-  const SonicAIAutomation = await ethers.getContractFactory("SonicAIAutomation");
-  console.log("Deploying SonicAIAutomation...");
-  const automation = await SonicAIAutomation.deploy(
-    "0x309C92261178fA0CF748A855e90Ae73FDb79EBc7" // WETH address
-  );
-  await automation.waitForDeployment();
-  const automationAddress = await automation.getAddress();
-  console.log("SonicAIAutomation deployed to:", automationAddress);
+  // Deploy the SonicToken contract first (if not already deployed)
+  const sonicTokenAddress = "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"; // WS token address
+  const routerAddress = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"; // Sonic Router address
 
-  // Link the two contracts
-  console.log("Setting up contract permissions...");
-  await monitor.addAuthorizedAI(automationAddress);
+  // Deploy the AgentFactory contract
+  const AgentFactory = await ethers.getContractFactory("AgentFactory");
+  console.log("Deploying AgentFactory...");
+  const agentFactory = await AgentFactory.deploy(sonicTokenAddress, routerAddress);
+  await agentFactory.waitForDeployment();
+  const agentFactoryAddress = await agentFactory.getAddress();
+  console.log("AgentFactory deployed to:", agentFactoryAddress);
   
   const fs = require("fs");
   const deploymentInfo = {
     network: "Sonic Blaze Testnet",
     chainId: Number(network.chainId),
     contracts: {
-      monitor: monitorAddress,
-      automation: automationAddress
+      AgentFactory: agentFactoryAddress,
+      SonicToken: sonicTokenAddress
     },
     tokens: {
       WETH: "0x309C92261178fA0CF748A855e90Ae73FDb79EBc7",
-      WS: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"
+      WS: sonicTokenAddress
     },
     timestamp: new Date().toISOString()
   };
@@ -60,10 +50,9 @@ async function main() {
 
   // Verification commands
   console.log("\nVerification commands:");
-  console.log(`npx hardhat verify --network sonic ${monitorAddress}`);
-  console.log(`npx hardhat verify --network sonic ${automationAddress} "${ethers.getAddress("0x309C92261178fA0CF748A855e90Ae73FDb79EBc7")}"`);
+  console.log(`npx hardhat verify --network sonicTestnet ${agentFactoryAddress} "${sonicTokenAddress}" "${routerAddress}"`);
 
-  return { monitor, automation };
+  return { agentFactory };
 }
 
 main()

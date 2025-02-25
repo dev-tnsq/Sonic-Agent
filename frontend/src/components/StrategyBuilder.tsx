@@ -1,9 +1,13 @@
+'use client';
+
 import { useState } from 'react';
 import { useMonitorContract } from '@/hooks/useContracts';
 import { CONTRACT_ADDRESSES } from '@/lib/contracts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { Badge } from './ui/badge';
+import { X } from 'lucide-react';
 
 export function StrategyBuilder() {
   const { createStrategy } = useMonitorContract();
@@ -21,7 +25,7 @@ export function StrategyBuilder() {
         targetPrice: Number(targetPrice),
         stopLoss: Number(stopLoss),
         maxAmount: Number(maxAmount),
-        tokens: [CONTRACT_ADDRESSES.WETH, CONTRACT_ADDRESSES.WRAPPED_S]
+        tokens: [CONTRACT_ADDRESSES.WETH, CONTRACT_ADDRESSES.WS]
       });
       toast.success('Strategy created successfully');
       setTargetPrice('');

@@ -1,11 +1,15 @@
+'use client';
+
 import { useAccount } from 'wagmi';
 import { WalletMonitor } from './WalletMonitor';
 import { StrategyBuilder } from './StrategyBuilder';
 import { TokenPriceMonitor } from './TokenPriceMonitor';
 import { TradeHistory } from './TradeHistory';
+import { useMonitorContract } from '@/hooks/useContracts';
 
 export function Dashboard() {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
+  const { strategy } = useMonitorContract();
 
   if (!isConnected) {
     return (
@@ -34,6 +38,30 @@ export function Dashboard() {
 
         <div className="mt-8">
           <TradeHistory />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3 mt-8">
+          <div className="bg-[#1D1D1D] rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-2">Wallet Status</h3>
+            <p className="text-sm text-gray-400">
+              {isConnected && address ? 
+                `Connected: ${address.slice(0, 6)}...${address.slice(-4)}` : 
+                'Not connected'
+              }
+            </p>
+          </div>
+
+          <div className="bg-[#1D1D1D] rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-2">Active Strategy</h3>
+            <p className="text-sm text-gray-400">
+              {strategy?.isActive ? 'Running' : 'No active strategy'}
+            </p>
+          </div>
+
+          <div className="bg-[#1D1D1D] rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-2">Network</h3>
+            <p className="text-sm text-gray-400">Sonic Blockchain</p>
+          </div>
         </div>
       </div>
     </div>

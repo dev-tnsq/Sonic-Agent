@@ -2,12 +2,12 @@
   "network": "Sonic Blaze Testnet",
   "chainId": 57054,
   "contracts": {
-    "monitor": "0x2F8b88144ea484de7bCf0879C70Bfc66bAb93586",
-    "automation": "0x159fE01399bB13Df1D1f51878553260b91209C87"
+    "AgentFactory": "0x04a4eCdBfcFf51E8C2A66ECB30Da6d0f60BE91fa",
+    "SonicToken": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"
   },
   "tokens": {
     "WETH": "0x309C92261178fA0CF748A855e90Ae73FDb79EBc7",
     "WS": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"
   },
-  "timestamp": "2025-02-25T00:02:35.146Z"
+  "timestamp": "2025-02-25T16:25:25.042Z"
 }
