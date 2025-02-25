@@ -9,53 +9,66 @@ async function main() {
     chainId: Number(network.chainId)
   });
   
-  // ChainId is now a bigint in ethers v6, so we need to convert it
   if (Number(network.chainId) !== 57054) {
     throw new Error(`Please run deployment on Sonic Blaze Testnet. Current chain ID: ${Number(network.chainId)}`);
   }
 
   const [deployer] = await ethers.getSigners();
-  const balance = await deployer.provider.getBalance(deployer.address);
-
   console.log("Deploying contracts with account:", deployer.address);
-  console.log("Account balance:", ethers.formatEther(balance));
+  
+  // Deploy the monitoring contract first
+  const SonicAIMonitor = await ethers.getContractFactory("SonicAIMonitor");
+  console.log("Deploying SonicAIMonitor...");
+  const monitor = await SonicAIMonitor.deploy();
+  await monitor.waitForDeployment();
+  const monitorAddress = await monitor.getAddress();
+  console.log("SonicAIMonitor deployed to:", monitorAddress);
 
-  try {
-    // Deploy the contract
-    const SonicAutomation = await ethers.getContractFactory("SonicAutomation");
-    console.log("Deploying SonicAutomation...");
-    const sonicAutomation = await SonicAutomation.deploy();
-    
-    // Wait for deployment
-    await sonicAutomation.waitForDeployment();
-    const deployedAddress = await sonicAutomation.getAddress();
+  // Deploy the automation contract that will execute trades
+  const SonicAIAutomation = await ethers.getContractFactory("SonicAIAutomation");
+  console.log("Deploying SonicAIAutomation...");
+  const automation = await SonicAIAutomation.deploy(
+    "0x309C92261178fA0CF748A855e90Ae73FDb79EBc7" // WETH address
+  );
+  await automation.waitForDeployment();
+  const automationAddress = await automation.getAddress();
+  console.log("SonicAIAutomation deployed to:", automationAddress);
 
-    console.log("SonicAutomation deployed to:", deployedAddress);
-    console.log("Verify on Sonic Explorer:", `https://testnet.sonicscan.org/address/${deployedAddress}`);
+  // Link the two contracts
+  console.log("Setting up contract permissions...");
+  await monitor.addAuthorizedAI(automationAddress);
+  
+  const fs = require("fs");
+  const deploymentInfo = {
+    network: "Sonic Blaze Testnet",
+    chainId: Number(network.chainId),
+    contracts: {
+      monitor: monitorAddress,
+      automation: automationAddress
+    },
+    tokens: {
+      WETH: "0x309C92261178fA0CF748A855e90Ae73FDb79EBc7",
+      WS: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"
+    },
+    timestamp: new Date().toISOString()
+  };
+  
+  fs.writeFileSync(
+    "./deployment.json",
+    JSON.stringify(deploymentInfo, null, 2)
+  );
 
-    // Write deployment address to a file for the AI agent
-    const fs = require("fs");
-    const deploymentInfo = {
-      address: deployedAddress,
-      network: "Sonic Blaze Testnet",
-      chainId: Number(network.chainId)
-    };
-    
-    fs.writeFileSync(
-      "../backend/deployment.json",
-      JSON.stringify(deploymentInfo, null, 2)
-    );
+  // Verification commands
+  console.log("\nVerification commands:");
+  console.log(`npx hardhat verify --network sonic ${monitorAddress}`);
+  console.log(`npx hardhat verify --network sonic ${automationAddress} "${ethers.getAddress("0x309C92261178fA0CF748A855e90Ae73FDb79EBc7")}"`);
 
-    return sonicAutomation;
-  } catch (error) {
-    console.error("Deployment failed:", error);
-    process.exit(1);
-  }
+  return { monitor, automation };
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("Deployment error:", error);
+    console.error("Deployment failed:", error);
     process.exit(1);
   });
